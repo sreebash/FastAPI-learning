@@ -67,4 +67,9 @@ def get_db():
 
 @app.post('/blog')
 def create(request: Blog, db: Session = Depends(get_db)):
-    return db
+    new_blog = models.Blog(title=request.title, body=request.body)
+    db.add(new_blog)
+    db.commit()
+    db.refresh(new_blog)
+    print(new_blog)
+    return new_blog
