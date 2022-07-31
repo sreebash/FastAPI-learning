@@ -101,3 +101,13 @@ def delete_blog(id, response: Response, db: Session = Depends(get_db)):
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Blog with the id {id} is deleted!')
 
     return 'deleted done'
+
+
+@app.put('/blog/{id}', status_code=status.HTTP_202_ACCEPTED)
+def update_blog(id, request: Blog, db: Session = Depends(get_db)):
+    blog = db.query(models.Blog).filter(models.Blog.id == id).update({'title': request.title, 'body': request.body})
+    db.commit()
+    if not blog:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Blog with the id {id} is not exist!')
+
+    return f'Blog with the id {id} is updated'
