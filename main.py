@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import FastAPI, Depends, Response, HTTPException
 from pydantic import BaseModel
@@ -7,7 +7,9 @@ from starlette import status
 
 from blog import models, schemas
 from blog.database import engine, SessionLocal
+from blog.hashing import Hash, pwd_cxt
 from blog.schemas import Blog
+from passlib.context import CryptContext
 
 app = FastAPI()
 
@@ -66,7 +68,7 @@ def get_db():
         db.close()
 
 
-@app.post('/blog', status_code=status.HTTP_201_CREATED)
+@app.post('/blog', status_code=status.HTTP_201_CREATED, tags=['blogs'])
 def create(request: Blog, db: Session = Depends(get_db)):
     new_blog = models.Blog(title=request.title, body=request.body)
     db.add(new_blog)
@@ -75,13 +77,13 @@ def create(request: Blog, db: Session = Depends(get_db)):
     return new_blog
 
 
-@app.get('/blog')
+@app.get('/blog', response_model=List[schemas.ShowBlog], tags=['blogs'])
 def get_blog_list(db: Session = Depends(get_db)):
     blogs = db.query(models.Blog).all()
     return blogs
 
 
-@app.get('/blog/{id}', status_code=status.HTTP_200_OK, response_model=schemas.ShowBlog)
+@app.get('/blog/{id}', status_code=status.HTTP_200_OK, response_model=schemas.ShowBlog, tags=['blogs'])
 def get_single_blog(id, response: Response, db: Session = Depends(get_db)):
     blog = db.query(models.Blog).filter(models.Blog.id == id).first()
     if not blog:
@@ -91,7 +93,7 @@ def get_single_blog(id, response: Response, db: Session = Depends(get_db)):
     return blog
 
 
-@app.delete('/blog/{id}', status_code=status.HTTP_204_NO_CONTENT)
+@app.delete('/blog/{id}', status_code=status.HTTP_204_NO_CONTENT, tags=['blogs'])
 def delete_blog(id, response: Response, db: Session = Depends(get_db)):
     blog = db.query(models.Blog).filter(models.Blog.id == id).delete(synchronize_session=False)
     db.commit()
@@ -103,7 +105,7 @@ def delete_blog(id, response: Response, db: Session = Depends(get_db)):
     return 'deleted done'
 
 
-@app.put('/blog/{id}', status_code=status.HTTP_202_ACCEPTED)
+@app.put('/blog/{id}', status_code=status.HTTP_202_ACCEPTED, tags=['blogs'])
 def update_blog(id, request: Blog, db: Session = Depends(get_db)):
     blog = db.query(models.Blog).filter(models.Blog.id == id).update({'title': request.title, 'body': request.body})
     db.commit()
@@ -111,3 +113,21 @@ def update_blog(id, request: Blog, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Blog with the id {id} is not exist!')
 
     return f'Blog with the id {id} is updated'
+
+
+@app.post('/user', response_model=schemas.ShowUser, tags=['users'])
+def create_user(request: schemas.User, db: Session = Depends(get_db)):
+    new_user = models.User(name=request.name, email=request.email, password=Hash.bcrypt(request.password))
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+@app.get('/user/{id}', response_model=schemas.ShowUser, tags=['users'])
+def get_user(id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User with id {id} is not available')
+
+    return user
