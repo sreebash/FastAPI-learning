@@ -20,4 +20,4 @@ class User(Base):
     email = Column(String)
     password = Column(String)
 
-    # blogs = relationship('Blog', backref='creator')
+    # blogs = relationship("Blog", backref='creator')
